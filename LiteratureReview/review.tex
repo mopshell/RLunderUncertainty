@@ -1,4 +1,7 @@
 \documentclass{article}
+\usepackage{amsmath,amssymb,amsbsy,amsfonts,amsthm}
+\usepackage{graphics,epsfig,graphicx,float,subfigure,color}
+
 \title{Literature Review}
 \author{Abraham Frei-Pearson \\
 	Department of Mathematics  \\
@@ -19,7 +22,14 @@ http://auai.org/uai2013/prints/papers/14.pdf
 
 https://www.jstor.org/stable/pdf/2296614.pdf
 
-A reformulation of the stochastic optimal control problem in terms of KL divergence minimisation \cite{rawlik2013stochastic}
+A reformulation of the stochastic optimal control problem in terms of KL divergence minimisation \cite{rawlik2013stochastic}.  A specific instance of stochastic optimal control is the reinforcement learning (RL) formalism  which does not assume knowledge of the dynamics or cost function, a situation that may often arise in practice.  Let $\mathcal{C}_t(x, u) \ge 0$ be the cost incurred per stage for choosing control $u$ in state $x$ at time $t$. The SOC problem consists of finding a policy which minimises the expected cost, i.e., solving
+\begin{equation}
+    \pi^* = \underset{\pi}{\mathrm{argmin}} \left \langle i  \sum_{t=0}^T \mathcal{C}_t (x_t, u_t) \right \rangle_{q_{\pi}}
+\end{equation}
+
+Learning Policy Improvements with Path Integrals \cite{theodorou2010learning} - The paper suggests the framework of stochastic optimal control with path integrals to derive a novel approach to RL with parametrized policies. While solidly grounded in value function estimation and optimal control based on the stochastic Hamilton-Jacobi-Bellman (HJB) equations, policy improvements can be transformed into an approximation problem of a path integral which has no open parameters other than the exploration noise.
+
+Risk Sensitive Markov Decision Processes \cite{marcus1997risk}
 
 
 \bibliographystyle{plain} 
