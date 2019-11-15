@@ -51,7 +51,7 @@ We are also interested, time permitting, in studying noisy problems in the one-s
 \[
     x_{t+1} = (I + A) x_t + \eta + u_t x_t,
 \]
-where $\eta$ is Gaussian and $u_t$ is a linear control. Our reward will be $1$ for all $t$ where $x_t$ is within a ball around the origin. What if the matrix $A$ is unknown a priori? This problem is studied in ~\cite{ornikIsraelTopcu} and \cite{ahmadiIsraelTopcu}, using the theory of differential inclusions. We would be interested in studying some simple examples of this in the context of reinforcement learning, in simple tabular or one dimensional cases. 
+where $\eta$ is Gaussian and $u_t$ is a linear control. Our reward will be $1$ for all $t$ where $x_t$ is within a ball around the origin. What if the matrix $A$ is unknown a priori? This problem is studied in ~\cite{ornikIsraelTopcu} and \cite{ahmadiIsraelTopcu}, using the theory of differential inclusions. This is also addressed in ~\cite{bagnellNgSchneider} in the min-max setting. Given a set of transitions $\mathcal P$, an algorithm for producing a policy maximizing $\mathbb E_{p \in \mathcal P, \Pi} \sum\limits_t \gamma^t R(X_t)$, where $X_t$ is the trajectory under $\pi$, is presented. It would be interesting to see if this algorithm could be adjusted to include a prior on the transitions, and optimize the expected reward according to that prior rather than the min-max reward. We would be interested in studying some simple examples of this in the context of reinforcement learning, in simple tabular or one dimensional cases. 
 
 
 
