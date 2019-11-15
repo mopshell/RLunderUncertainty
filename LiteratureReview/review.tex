@@ -31,6 +31,43 @@ Learning Policy Improvements with Path Integrals \cite{theodorou2010learning} - 
 
 Risk Sensitive Markov Decision Processes \cite{marcus1997risk}
 
+\section{Proposal}
+
+{\em This section is unaltered from our proposal, including a few typos; we include it for reference.}
+
+We are interested in applying reinforcement learning techniques to noisy optimal control problems. The general case will be in the following form. Given an unknown $n \times n$ matrix valued function $A$, our state will be a vector $x_t \in \mathbb R^n$, and our dynamics will be
+\[
+    x_{t+1} = (I + A(x_t)) x_t + u(x_t) + g,
+\]
+where $g$ is Gaussian noise. Here $u$ will be a control function, which we are trying to learn, which will be specified in different problem domains. In general, we'll take $u$ to be bounded. We could consider the avoid problem: we would like $x$ to avoid a certain region. We could also consider the reach problem: we would like $x$ to reach a specified neighborhood of the origin (say) in time as small as possible.
+
+Cartpole, or inverted pendulum, is a basic example of this sort of problem in the noise free setting, and it will be our starting point. To start with we'll consider {\em bang-bang} controls only: the cart can be accelerated either left or right with full force at each time. With this in mind, the problem admits the following description:
+\begin{enumerate}
+    \item []{\em State space}: This is the position of the cart, and the angle and angular velocity of the pendulum, so it is $\mathbb R \times (0,\pi) \times \mathbb R$.
+    \item []{\em Action space}: This is just whether we are accelerating the box left or right, so $\{\pm 1\}$.
+    \item []{\em Reward function}: We will take this to be $-1$ if the pendulum falls past a given threshold, and $0$ otherwise.
+\end{enumerate}
+
+In the noise-free setting, the inverted pendulum is stable with an appropriate control. On the other hand, if the noise term is large enough compared to the size of the control, the pendulum will tip over quickly no matter what you do. It would be interesting to compute this relationship empirically and see how common reinforcement learning algorithms compare.
+We will also explore the same problem in the noise-free setting with noisy observations. In this case, the state should include previous observations, since these can be used to more appropriately approximate the true state of the system.
+If this goes well, we would like to explore some of the other optimal control problems in the OpenAI gym.
+
+There are a number of reach goals which would be of interest. What if damping is added to the inverted pendulum, i.e. the acceleration caused by the control depends on the position of the cart. This problem is interesting in the one-shot case: suppose the dynamics (i.e. the matrix $A$ above) is chosen randomly. What is the best strategy for computing $u$? In this case, we will need to move away from bang-bang controls: it makes sense to hold off on firing the control, or fire it at a small velocity, early on to learn the system dynamics. Could the reach or avoid problems be solved safely in this case?
+
+There are several abstractions we are interested in considering: noise in the system itself, noise in the observations, and noise in the reward. In what follows, we will refer to a problem as "traditional optimal control" if the noise-free dynamics are known, and "reinforcement learning" if they are not. 
+
+Noisy dynamics introduce maximization bias, as discussed in Sutton and Barto ~\cite{suttonAndBarto}, into the standard reinforcement learning algorithms. The point is that, early in training, noise causes the best-looking action to look better than it actually is. This is dealt with effectively by double-Q learning. Another algorithm for dealing with maximization bias is discussed in \cite{foxPakmanTishby}, so called "G-learning". This algorithm begins with a stochastic policy $\rho$. A pseudo-reward is calculated for each state action pair called $G_\pi(s,a)$, where $G_\pi(s,a)$ is $Q(s,a)$ less an information cost which is a discounted version of the Kullback-Liebler divergence $KL(\pi( \dot , s) || \rho( \dot , s))$.
+
+In the case of traditional optimal control, at least when the state dynamics are locally linear, an  optimal estimate for the state is given by extended Kalman filtration ~\cite{welchBishop}. This is optimal in the sense that, given knowledge about the noise, the Kalman estimate for the state minimizes the expected squared error. The Kalman estimate is as follows: suppose the matrix $A$ above is known, and our estimate for $x_t$ is $\hat x_t$. We obtain an estimate for $x_{t+1}$ by applying $H := I+A$ to $\hat x_t$. If $z$ is the observed value at time $t+1$, then we set $\hat x_{t+1} = x_{t+1} + K (z - x_{t+1})$, where $K$ is the {\em Kalman gain}, obtained by minimizing the a posteriori variance of the estimate. We would like to see how much applying the Kalman filter to our data in a noisy environment improves the usual reinforcement learning methods. Although we need a model to apply the Kalman filter, it would still be interesting to study improvements to reinforcement learning from filtered data. Kalman filtration is also applied to reinforcement learning problems in ~\cite{trippSchacter} in a somewhat different way: in this case Kalman filtration is applied to the update of the $Q$-function directly, and then $Q$-learning is applied.
+
+We are also interested, time permitting, in studying noisy problems in the one-shot case. Consider a discrete, linear dynamical system with noise
+\[
+    x_{t+1} = (I + A) x_t + \eta + u_t x_t,
+\]
+where $\eta$ is Gaussian and $u_t$ is a linear control. Our reward will be $1$ for all $t$ where $x_t$ is within a ball around the origin. What if the matrix $A$ is unknown a priori? This problem is studied in ~\cite{ornikIsraelTopcu} and \cite{ahmadiIsraelTopcu}, using the theory of differential inclusions. We would be interested in studying some simple examples of this in the context of reinforcement learning, in simple tabular or one dimensional cases. 
+
+\bibliography{references}{}
+\bibliographystyle{plain}
 
 \bibliographystyle{plain} 
 \bibliography{references}
