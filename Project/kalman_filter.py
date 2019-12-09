@@ -57,7 +57,7 @@ class KalmanFilterWrapper:
         self.n_time_steps += 1
 
         done = False
-        reward = 1.
+        reward = 0.1
 
         if np.linalg.norm(self.x_k_m) < 0.2:
             reward = 5.
