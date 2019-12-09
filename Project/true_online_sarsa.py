@@ -1,4 +1,5 @@
 import numpy as np
+from state_approximators import StateActionFeatureVectorWithTile
 
 def SarsaLambda(
     env, # openai gym environment
@@ -12,8 +13,8 @@ def SarsaLambda(
     Implement True online Sarsa(\lambda)
     """
 
-    def epsilon_greedy_policy(s,done,w,epsilon=.0):
-        nA = env.action_space.n
+    def epsilon_greedy_policy(s,done,w,epsilon=.1):
+        nA = env.actions
         Q = [np.dot(w, X(s,done,a)) for a in range(nA)]
 
         if np.random.rand() < epsilon:

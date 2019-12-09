@@ -1,16 +1,106 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
 class KalmanFilterWrapper:
-    def __init__(self, noisy_env, other_params):
-        self.env = noisy_env
-        self.S = None
+    def __init__(self, A, B, H, Q, R, x_0, P_0):
+        self.A = A
+        self.B = B
+        self.H = H
+        self.Q = Q
+        self.R = R
+        self.x_hat = x_0 + np.random.multivariate_normal(np.zeros(x_0.shape), P_0)
+        self.x_k_m = x_0
+        self.z_k = np.dot(H, x_0)
+        self.P = P_0
+        self.s_dim = x_0.shape[0]
+        self.x_0 = x_0
+        self.P_0 = P_0
+        self.n_time_steps = 0
+        self.actions = 3
+        self.ev = [self.x_k_m]
 
-    def aposteriori(measurement):
-        return self.S
+    def reset(self):
+        self.x_0 = np.array([-1.62, 1.0]) + np.random.randn(2) * 0.05
+        self.x_hat = self.x_0 + np.random.multivariate_normal(np.zeros(self.x_0.shape), self.P_0)
+        self.x_k_m = self.x_0
+        self.z_k = np.dot(self.H, self.x_0)
+        self.P = self.P_0
+        self.n_time_steps = 0
+        self.ev = [self.x_k_m]
+        return self.x_hat 
 
-    def reset():
-        S = self.env.reset()
-        # TODO: reset filter?
-        return self.aposteriori(S)
+    def action_to_control(self, action):
+        '''
+        Action to control mapping:
+            0 - move left
+            1 - no control
+            2 - move right
+        '''
+        #  print(f"Action picked: {action}")
+        #  m = -0.618034
+        #  mx = m * self.x_k_m[0]
+        #  if (self.x_k_m[1] > mx):
+            #  return np.array([-1, 0.])
+        #  else:
+            #  return np.array([1, 0.])
+        return np.array([action-1, 0.])
 
-    def step(self):
-        (S, R, done, info) = self.env.step()
-        return (self.aposteriori(S), R, done, info)
+    def within_valley(self, state):
+        m = -0.618034
+        bound = 0.5
+        ub = m * state[0] + bound
+        lb = m * state[0] - bound
+        return (state[1] < ub) and (state[1] > lb)
+
+    def step(self, action):
+        self.time_update(self.action_to_control(action))
+        self.n_time_steps += 1
+
+        done = False
+        reward = 1.
+
+        if np.linalg.norm(self.x_k_m) < 0.2:
+            reward = 5.
+
+        # If outside 2x(unit ball), controller failed. Reward -1
+        #  if np.linalg.norm(self.x_k_m) > 2.0 or self.n_time_steps == 400:
+        if not self.within_valley(self.x_k_m) or self.n_time_steps == 400:
+            print(f"Episode terminated: x = {self.x_k_m}, t = {self.n_time_steps}")
+            ev_mat = np.array(self.ev)
+            plt.plot(ev_mat[:,0], ev_mat[:, 1])
+            done = True
+
+        info = None
+
+        return (self.x_hat, reward, done, info) 
+
+    def time_update(self, u):
+        '''
+        Control variable u
+        '''
+        x_prior = np.dot(self.A, self.x_hat) + np.dot(self.B, u)
+        P_prior = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
+
+        # Draw process noise
+        w_k_m = np.random.multivariate_normal(np.zeros(self.x_k_m.shape), self.Q)
+
+        # Update dynamical system
+        x_k = np.dot(self.A, self.x_k_m) + np.dot(self.B, u) + w_k_m
+        self.ev.append(x_k)
+        #  print(f"State_prev: {self.x_k_m}, state: {x_k}, t: {self.n_time_steps}")
+
+        # Draw measurement noise
+        v_k = np.random.multivariate_normal(np.zeros(self.z_k.shape), self.R)
+
+        # Obtain measurement
+        z_k = np.dot(self.H, x_k) + v_k
+
+        # Compute Kalman gain
+        S = self.H @ P_prior @ self.H.T + self.R
+        K_k = np.linalg.solve(S.T, self.H @ P_prior.T).T
+
+        # Update a posteriori estimate
+        self.x_hat = K_k @ (z_k - self.H @ x_prior)
+        self.P = (np.eye(self.s_dim) - K_k @ self.H) @ P_prior
+
+        self.x_k_m = x_k

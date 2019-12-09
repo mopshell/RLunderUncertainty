@@ -1,3 +1,5 @@
+import numpy as np
+
 class StateActionFeatureVectorWithTile():
     def __init__(self,
                  state_low:np.array,
