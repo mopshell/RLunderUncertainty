@@ -1,1 +1,1 @@
-
+G learning is implemented in qandglearning.py, along with Q learning. To produce the figure in the text import producePlot and call producePlot.runExperiment(200,0.5,20,40).
