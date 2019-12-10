@@ -64,6 +64,46 @@ A specific instance of stochastic optimal control is the reinforcement learning 
 where $\langle \cdot \rangle_{q_{\pi}}$ denotes the expectation with respect to the distribution over trajectories under policy $\pi$.
 \fi
 
+\section{G learning}
+
+\subsection{Description of the algorithm}
+
+We begin by recalling the setup for $Q$-learning. For consistency with ~\cite{foxPakmanTishby}, we will state the algorithm in terms of costs rather than rewards. For an MDP with discount $\gamma$, a state-action value function $Q$, and an observed state, action, cost, and new state $s,a,c,s'$, we perform the update $Q(s,a)=\alpha Q(s,a) + (1-\alpha) (c + \gamma \arg \min\limits_{a'} Q(s',a))$. Action are chosen according to a policy which is $\epsilon$ greedy with respect to $Q$.
+
+Although there are robust convergence guarantees for $Q$-learning, in the presence of noise $Q$-learning converges very slowly. The reason is this: suppose that, early in training, we observe a particularly low value of $Q(s,a)$ early in training due to stochasticity. Then, with high probability, the action $a$ will be chosen whenever the MDP is in the state $s$, preventing exploration.
+
+$G$ learning is obtained from $Q$ learning by adding an information cost with respect to a given baseline policy $\rho$. Specifically, $g^\pi(s,a) = \log(\frac{\pi(a | s)}{\rho(a | s)})$. Then the information cost of a state $s$ is
+\[
+    I^\pi(s) = \sum\limits_{t \geq 0} \gamma^t \mathbb E [g^\pi(s_t,a_t) | s_0 = s].
+\]
+Set set the state value to be $F^\pi(s) = V^\pi(s) + \frac{1}{\beta} I^\pi(s)$. The number $\beta$ is a parameter which can be tuned to the problem and the baseline policy $\rho$. The state action function $G^\pi(s,a)$ is then defined as
+\[
+    G^\pi(s,a) = \mathbb E(c|s,a) + \gamma \mathbb E(F^\pi(s')|s,a],
+\]
+where $c$ is the cost and $F^\pi(s')$ is the state value of the next state. We thus obtain 
+\[
+    F^pi(s) = \sum\limits_{a} \pi(a|s) (\frac{1}{\beta} \log \frac{\pi(a|s)}{\rho(a|s)} + G^\pi(s,a).
+\]
+Setting the gradient of this with respect to $\pi(a|s)$ to zero gives
+\[
+    \pi(a|s) = \frac{\rho(a|s) e^{-\beta G(s,a)}}{\sum\limits_{a'} \rho(a'|s) e^{-\beta G(s,a')}}.
+\]
+This leads to the update
+\[
+    G(s,a) \leftarrow (1-\alpha) G(s,a) + \alpha(c - \frac{\gamma}{\beta} \log(\sum\limits_{a'} \rho(a'|s') e^{-\beta G(s',a')})
+\]
+given the observation $s,a,r,s'$.
+
+The temperature parameter $\beta$ encodes how much preference is given to the prior policy $\rho$. When $\beta$ is small, $G$-learning heavily penalizes policies which are different from $\rho$. In the limit, when $\beta = 0$, $G$-learning will only allow the function $\rho$ to be used. On the other hand, as $\beta \to \infty$, the behavior of $G$-learning tends to that of $Q$-learning. In practice, we set $\beta = i$ for the $i$th episode.
+
+\subsection{Experiment}
+
+We tested the performing of $G$-learning against $Q$-learning in the simple gridworld setup of ~\cite{suttonAndBarto}, example 4.1. Here we have a 4x4 grid with terminal states in the upper left and lower right corners, with a reward of $-1$ (or a cost of $1$) for each transition. We trained a $Q$-learning and a $G$-learning agent on this environment: we ran trained 200 independent agents on $Q$- and $G$-learning each for 40 episodes, and recorded the cumulative score. We took the learning rate $\alpha$ to be $0.1$, the parameter $\epsilon$ in $Q$-learning (the $\epsilon$ with respect to which the policy is $\epsilon$-greedy) to be $0.1$, the prior policy to be uniform at random, and the temperature parameter $\beta$ to be $i$ in the $i$th episode. Note that in all cases $G$-learning outperforms $Q$-learning, but $G$-learning performs even better in the case of greater noise.
+
+In the figure below, the $x$ axis represents the size of the noise term: for each $x$ we added a uniform random variable to the return drawn from $[-x,x]$. The $y$-axis represents the difference in the cumulative reward over the 40 episodes between $Q$-learning and $G$-learning, averaged over all 200 runs.
+
+\includegraphics[]{Figure_1.png}
+
 \bibliographystyle{plain} 
 \bibliography{references}
 
