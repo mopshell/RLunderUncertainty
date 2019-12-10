@@ -1,0 +1,127 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb,amsbsy,amsfonts,amsthm}
+\usepackage{graphics,epsfig,graphicx,float,subfigure,color}
+
+\title{State Estimation with Kalman Filtering applied to Reinforcement Learning}
+\author{Abraham Frei-Pearson \\
+	Department of Mathematics  \\
+	\and 
+	Sheroze Sheriffdeen \\
+	Oden Institute \\
+	}
+
+\date{\today}
+% Hint: \title{what ever}, \author{who care} and \date{when ever} could stand 
+% before or after the \begin{document} command 
+% BUT the \maketitle command MUST come AFTER the \begin{document} command! 
+\begin{document}
+
+\maketitle
+
+\section{Discrete Time-Controlled Processes}
+
+For this section of our project, we are interested in applying reinforcement learning techniques to noisy optimal control problems. The general case will be in the following form. Given a $A \in \mathbb{R}^{n \times n}$, $B \in \mathbb{R}^{n \times n_u}$, the state will be a vector $x_t \in \mathbb R^n$, and our dynamics will be governed by the linear stochastic difference equation
+\begin{equation}
+    x_{t+1} = (I + \triangle t A) x_t + Bu(x_t) + w_t,
+    \label{eq:dynamical}
+\end{equation}
+with state measurements,
+\[
+	z_{t+1} = H x_{t+1} + v_{t+1}
+\].
+The random variables $w_t$ and $v_t$ represent process and measurement noise respectively. They are assumed to be independent of each other, white, with normal probability distributions
+\[ 
+p(w) \sim \mathcal{N}(0, Q)
+\]
+\[
+p(v) \sim \mathcal{N}(0, R)
+\]
+
+$u(x_t) \in \mathbb{R}^{n_u}$ is the control vector that we are trying to learn using reinforcement learning. We employ true-online TD($\lambda$) to learn a parametrized control vector at each time step given noisy measurements of state.
+
+\section{State Estimation with Kalman Filtering}
+
+The following is from the excellent introduction to Kalman filters by Welch and Bishop \cite{welch1995introduction}. The Kalman filter is a set of mathematical equations that provide efficient means of estimating the state of a physical process given observations. At each step, an \textit{a priori} estimate of the state $\hat{x}_{t}^{\text{p}}$ represents the knowledge of the process state prior to time $t$. The controller, or the reinforcement learning algorithm, picks a parametrized action given this prior estimate. The action is then executed, and a noisy observation of the state is obtained from the environment. This observation is used to compute an \textit{a posteriori} estimate of the state $\hat{x}_{t}$. We can then define $\textit{a priori}$ and $\textit{a posteriori}$ estimate errors as,
+\begin{align*}
+	e^{\text{p}}_t &= x_t - \hat{x}_{t}^{\text{p}} \\
+	e_t &= x_t - \hat{x}_{t} 
+\end{align*}
+
+The estimate error covariances are,
+\begin{align}
+	P^p_t &= \mathbb{E}\left[e^{\text{p}}_t e^{\text{p}T}_t \right]  \\
+	P_t &= \mathbb{E}\left[e_t e_t^{T} \right] \label{eq:ap_err_cov}
+\end{align}
+
+The Kalman filter begins with the goal of finding an equation that computes the a posteriori state estimate as a linear combination of the a priori estimate and an affine function of the difference between the actual measurement and the predicted measurement.
+\begin{equation}
+	\hat{x}_t = \hat{x}_t^p + K(z_t - H\hat{x}_t^p)
+	\label{eq:ap}
+\end{equation}
+The difference $(z_t - H\hat{x}_t^p)$ is called the measurement innovation, or the residual.  $K \in \mathbb{R}^{n \times n_u}$ is the gain that minimizes the a posteriori error covariance (\ref{eq:ap_err_cov}). One form of the resulting K \cite{maybeck1982stochastic} is, 
+\begin{equation}
+	K_t = P_t^p H^T(HP_t^pH^T + R)^{-1}
+	\label{eq:k_gain}
+\end{equation}
+As measurement error covariance $R$ approaches zero, the gain approaches the inverse of the measurement operator $H^{-1}$. 
+
+\subsection{Kalman Filter Prediction-Correction}
+Given a policy $\pi$, the following steps outline a robust method to pick actions by employing state estimation. 
+
+Initialize Kalman filter with $\hat{x}_0$ to the initial state. Assume $A, B, P, Q, H$ are known. For each $t = (1, \ldots, T)$, 
+\begin{enumerate}
+	\item Pick action $a_{t-1} \sim \pi(\cdot | \hat{x}_{t-1})$. 
+	\item Map from action to parametrized control vector $u_{t-1}$.
+	\item Obtain a priori estimate of state: $\hat{x}_t^p = A\hat{x}_{t-1} + Bu_{t-1}$.
+	\item Project covariance estimate forward in time: $P_{t}^p = AP_{t-1}A^T + Q$.
+	\item Compute Kalman gain $K_t$ from equation (\ref{eq:k_gain}).
+	\item Take action $a_t$ and evolve dynamical system according to (\ref{eq:dynamical}) to obtain measurement $z_t$.
+	\item Compute a posteriori estimate of state using (\ref{eq:ap}).
+	\item Update covariance estimate $P_t = (I - K_tH)P_t^p$.
+\end{enumerate}
+
+Using the a posteriori estimate for the state gives a mechanism to perform policy evaluation and control. 
+
+
+
+
+Cartpole, or inverted pendulum, is a basic example of this sort of problem in the noise free setting, and it will be our starting point. To start with we'll consider {\em bang-bang} controls only: the cart can be accelerated either left or right with full force at each time. With this in mind, the problem admits the following description:
+\begin{enumerate}
+    \item []{\em State space}: This is the position of the cart, and the angle and angular velocity of the pendulum, so it is $\mathbb R \times (0,\pi) \times \mathbb R$.
+    \item []{\em Action space}: This is just whether we are accelerating the box left or right, so $\{\pm 1\}$.
+    \item []{\em Reward function}: We will take this to be $-1$ if the pendulum falls past a given threshold, and $0$ otherwise.
+\end{enumerate}
+
+In the noise-free setting, the inverted pendulum is stable with an appropriate control. On the other hand, if the noise term is large enough compared to the size of the control, the pendulum will tip over quickly no matter what you do. It would be interesting to compute this relationship empirically and see how common reinforcement learning algorithms compare.
+We will also explore the same problem in the noise-free setting with noisy observations. In this case, the state should include previous observations, since these can be used to more appropriately approximate the true state of the system.
+If this goes well, we would like to explore some of the other optimal control problems in the OpenAI gym.
+
+There are a number of reach goals which would be of interest. What if damping is added to the inverted pendulum, i.e. the acceleration caused by the control depends on the position of the cart. This problem is interesting in the one-shot case: suppose the dynamics (i.e. the matrix $A$ above) is chosen randomly. What is the best strategy for computing $u$? In this case, we will need to move away from bang-bang controls: it makes sense to hold off on firing the control, or fire it at a small velocity, early on to learn the system dynamics. Could the reach or avoid problems be solved safely in this case?
+
+There are several abstractions we are interested in considering: noise in the system itself, noise in the observations, and noise in the reward. In what follows, we will refer to a problem as "traditional optimal control" if the noise-free dynamics are known, and "reinforcement learning" if they are not. 
+
+Noisy dynamics introduce maximization bias, as discussed in Sutton and Barto ~\cite{suttonAndBarto}, into the standard reinforcement learning algorithms. The point is that, early in training, noise causes the best-looking action to look better than it actually is. This is dealt with effectively by double-Q learning. Another algorithm for dealing with maximization bias is discussed in \cite{foxPakmanTishby}, so called "G-learning". This algorithm begins with a stochastic policy $\rho$. A pseudo-reward is calculated for each state action pair called $G_\pi(s,a)$, where $G_\pi(s,a)$ is $Q(s,a)$ less an information cost which is a discounted version of the Kullback-Liebler divergence $KL(\pi( \dot , s) || \rho( \dot , s))$.
+
+In the case of traditional optimal control, at least when the state dynamics are locally linear, an  optimal estimate for the state is given by extended Kalman filtration ~\cite{welchBishop}. This is optimal in the sense that, given knowledge about the noise, the Kalman estimate for the state minimizes the expected squared error. The Kalman estimate is as follows: suppose the matrix $A$ above is known, and our estimate for $x_t$ is $\hat x_t$. We obtain an estimate for $x_{t+1}$ by applying $H := I+A$ to $\hat x_t$. If $z$ is the observed value at time $t+1$, then we set $\hat x_{t+1} = x_{t+1} + K (z - x_{t+1})$, where $K$ is the {\em Kalman gain}, obtained by minimizing the a posteriori variance of the estimate. We would like to see how much applying the Kalman filter to our data in a noisy environment improves the usual reinforcement learning methods. Although we need a model to apply the Kalman filter, it would still be interesting to study improvements to reinforcement learning from filtered data. Kalman filtration is also applied to reinforcement learning problems in ~\cite{trippSchacter} in a somewhat different way: in this case Kalman filtration is applied to the update of the $Q$-function directly, and then $Q$-learning is applied.
+
+We are also interested, time permitting, in studying noisy problems in the one-shot case. Consider a discrete, linear dynamical system with noise
+\[
+    x_{t+1} = (I + A) x_t + \eta + u_t x_t,
+\]
+where $\eta$ is Gaussian and $u_t$ is a linear control. Our reward will be $1$ for all $t$ where $x_t$ is within a ball around the origin. What if the matrix $A$ is unknown a priori? This problem is studied in ~\cite{ornikIsraelTopcu} and \cite{ahmadiIsraelTopcu}, using the theory of differential inclusions. This is also addressed in ~\cite{bagnellNgSchneider} in the min-max setting. Given a set of transitions $\mathcal P$, an algorithm for producing a policy maximizing $\mathbb E_{p \in \mathcal P, \Pi} \sum\limits_t \gamma^t R(X_t)$, where $X_t$ is the trajectory under $\pi$, is presented. It would be interesting to see if this algorithm could be adjusted to include a prior on the transitions, and optimize the expected reward according to that prior rather than the min-max reward. We would be interested in studying some simple examples of this in the context of reinforcement learning, in simple tabular or one dimensional cases. 
+
+
+
+A reformulation of the stochastic optimal control problem in terms of KL divergence minimization is examined by Rawlik et. al \cite{rawlik2013stochastic}. This work considers reinforcement learning as an instance of stochastic optimal control which does not assume knowledge of the dynamics.  A cost is associated with each policy relating to a measure of the control, and the stochastic optimal policy is posed as finding an optimal policy that minimizes the expected cost of controls following trajectories under the given policy. An experiment performed with the cart-pole problem with zero mean Gaussian noise added to the state and an extended Kalman smoother \cite{stengel1986stochastic} is use to estimate a Gaussian approximation to the full posterior of the state variables, leading to a Gaussian posterior policy.
+\iffalse
+A specific instance of stochastic optimal control is the reinforcement learning (RL) formalism  which does not assume knowledge of the dynamics or cost function, a situation that may often arise in practice.  Let $\mathcal{C}_t(x, u) \ge 0$ be the cost incurred per stage for choosing control $u$ in state $x$ at time $t$. The SOC problem consists of finding a policy which minimises the expected cost, i.e., solving
+\begin{equation}
+    \pi^* = \underset{\pi}{\mathrm{argmin}} \left \langle i  \sum_{t=0}^T \mathcal{C}_t (x_t, u_t) \right \rangle_{q_{\pi}}
+\end{equation}
+where $\langle \cdot \rangle_{q_{\pi}}$ denotes the expectation with respect to the distribution over trajectories under policy $\pi$.
+\fi
+
+\bibliographystyle{plain} 
+\bibliography{references}
+
+\end{document}

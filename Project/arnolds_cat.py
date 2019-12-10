@@ -39,7 +39,7 @@ def _eval(env, w, X):
 
 
 # Measurement noise
-r_vars = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
+r_vars = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 averaged_returns_no_kf = []
 
 for r_var in r_vars:
@@ -56,8 +56,8 @@ for r_var in r_vars:
     w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=1000)
     print(f"Completed Sarsa Lambda training for noise level: {r_var}")
 
-    trial = 100
-    gs = [_eval(env, w, X, env) for _ in  range(trials)]
+    trials = 100
+    gs = [_eval(env, w, X) for _ in  range(trials)]
     averaged_returns_no_kf.append(sum(gs)/trials)
 
 averaged_returns = []
@@ -76,12 +76,14 @@ for r_var in r_vars:
     w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=1000)
     print(f"Completed Sarsa Lambda training for noise level: {r_var}")
 
-    trial = 100
-    gs = [_eval(env, w, X, env) for _ in  range(trials)]
+    trials = 100
+    gs = [_eval(env, w, X) for _ in  range(trials)]
     averaged_returns.append(sum(gs)/trials)
 
-plt.plot(r_vars, averaged_returns_no_kf)
-plt.plot(r_vars, averaged_returns)
+print(averaged_returns)
+print(averaged_returns_no_kf)
+plt.loglog(r_vars, averaged_returns_no_kf)
+plt.loglog(r_vars, averaged_returns)
 plt.legend(["No KF", "KF"])
 plt.show()
 
