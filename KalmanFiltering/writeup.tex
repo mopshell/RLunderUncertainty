@@ -23,15 +23,15 @@
 \section{Kalman Filtering for State Estimation}
 \subsection{Discrete Time-Controlled Processes}
 
-For this section of our project, we are interested in applying reinforcement learning techniques to noisy optimal control problems. The general case will be in the following form. Given a $A \in \mathbb{R}^{n \times n}$, $B \in \mathbb{R}^{n \times n_u}$, the state will be a vector $x_t \in \mathbb R^n$, and our dynamics will be governed by the linear stochastic difference equation
+For this section of our project, we are interested in applying reinforcement learning techniques to noisy optimal control problems. The general case will be in the following form. Given matrices $A \in \mathbb{R}^{n \times n}$, $B \in \mathbb{R}^{n \times n_u}$, and the state represented by a vector $x_t \in \mathbb R^n$, our dynamics will be governed by the linear stochastic difference equation
 \begin{equation}
     x_{t+1} = (I + \triangle t A) x_t + Bu(x_t) + w_t,
     \label{eq:dynamical}
 \end{equation}
-with state measurements,
+with state measurements $z_t \in \mathbb{R}^{n_o}$, 
 \[
 	z_{t+1} = H x_{t+1} + v_{t+1}
-\].
+\]
 The random variables $w_t$ and $v_t$ represent process and measurement noise respectively. They are assumed to be independent of each other, white, with normal probability distributions
 \[ 
 p(w) \sim \mathcal{N}(0, Q)
@@ -39,29 +39,26 @@ p(w) \sim \mathcal{N}(0, Q)
 \[
 p(v) \sim \mathcal{N}(0, R)
 \]
-
 $u(x_t) \in \mathbb{R}^{n_u}$ is the control vector that we are trying to learn using reinforcement learning. We employ true-online TD($\lambda$) to learn a parametrized control vector at each time step given noisy measurements of state.
 
 \subsection{State Estimation with Kalman Filtering}
 
-The following is from the excellent introduction to Kalman filters by Welch and Bishop \cite{welch1995introduction}. The Kalman filter is a set of mathematical equations that provide efficient means of estimating the state of a physical process given observations. At each step, an \textit{a priori} estimate of the state $\hat{x}_{t}^{\text{p}}$ represents the knowledge of the process state prior to time $t$. The controller, or the reinforcement learning algorithm, picks a parametrized action given this prior estimate. The action is then executed, and a noisy observation of the state is obtained from the environment. This observation is used to compute an \textit{a posteriori} estimate of the state $\hat{x}_{t}$. We can then define $\textit{a priori}$ and $\textit{a posteriori}$ estimate errors as,
+The following is from the excellent introduction to Kalman filters by Welch and Bishop \cite{welch1995introduction}. The Kalman filter is a set of mathematical equations that provide efficient means of estimating the state of a physical process given observations. At each step, an \textit{a priori} estimate of the state $\hat{x}_{t}^{\text{p}}$ represents the knowledge of the process state prior to time $t$. The controller, or the reinforcement learning algorithm, picks a parametrized action given this prior estimate. The action is then executed, and a noisy observation of the state is obtained from the environment. This observation is used to compute an \textit{a posteriori} estimate of the state $\hat{x}_{t}$ by updating our belief of the state given evidence in the form of observations. We can then define $\textit{a priori}$ and $\textit{a posteriori}$ estimate errors as,
 \begin{align*}
 	e^{\text{p}}_t &= x_t - \hat{x}_{t}^{\text{p}} \\
 	e_t &= x_t - \hat{x}_{t} 
 \end{align*}
-
 The estimate error covariances are,
 \begin{align}
 	P^p_t &= \mathbb{E}\left[e^{\text{p}}_t e^{\text{p}T}_t \right]  \\
 	P_t &= \mathbb{E}\left[e_t e_t^{T} \right] \label{eq:ap_err_cov}
 \end{align}
-
 The Kalman filter begins with the goal of finding an equation that computes the a posteriori state estimate as a linear combination of the a priori estimate and an affine function of the difference between the actual measurement and the predicted measurement.
 \begin{equation}
 	\hat{x}_t = \hat{x}_t^p + K(z_t - H\hat{x}_t^p)
 	\label{eq:ap}
 \end{equation}
-The difference $(z_t - H\hat{x}_t^p)$ is called the measurement innovation, or the residual.  $K \in \mathbb{R}^{n \times n_u}$ is the gain that minimizes the a posteriori error covariance (\ref{eq:ap_err_cov}). One form of the resulting K \cite{maybeck1982stochastic} is, 
+The difference $(z_t - H\hat{x}_t^p)$ is called the measurement innovation, or the residual.  $K \in \mathbb{R}^{n \times n_o}$ is the gain that minimizes the a posteriori error covariance (\ref{eq:ap_err_cov}). One form of the resulting K is, \cite{maybeck1982stochastic} 
 \begin{equation}
 	K_t = P_t^p H^T(HP_t^pH^T + R)^{-1}
 	\label{eq:k_gain}
@@ -69,8 +66,12 @@ The difference $(z_t - H\hat{x}_t^p)$ is called the measurement innovation, or t
 As measurement error covariance $R$ approaches zero, the gain approaches the inverse of the measurement operator $H^{-1}$. 
 
 \subsubsection{Kalman Filter Prediction-Correction}
-Given a policy $\pi$, the following steps outline a robust method to pick actions by employing state estimation. 
+Given a policy $\pi$, the following steps outline a robust method to employ Kalman filter based state estimation. Using the a posteriori estimate for the state gives a mechanism to perform policy evaluation and control by using the Kalman filter as the mediation between the measurements obtained from the environment and the internal representation of the state. Furthermore, for cases where the discrete-time controlled process is governed by a nonlinear stochastic difference equation, a Kalman filter that linearizes around the current mean and covariance referred to as an extended Kalman filter can be used to obtain robust estimates of the state. \cite{welch1995introduction} This report focuses only on the linear dynamical system case. \\
 
+\noindent
+\textbf{Kalman Filters in the Policy Action Selection Loop} \\
+
+\noindent
 Initialize Kalman filter with $\hat{x}_0$ to the initial state. Assume $A, B, P, Q, H$ are known. For each $t = (1, \ldots, T)$, 
 \begin{enumerate}
 	\item Pick action $a_{t-1} \sim \pi(\cdot | \hat{x}_{t-1})$. 
@@ -83,11 +84,9 @@ Initialize Kalman filter with $\hat{x}_0$ to the initial state. Assume $A, B, P,
 	\item Update covariance estimate $P_t = (I - K_tH)P_t^p$.
 \end{enumerate}
 
-Using the a posteriori estimate for the state gives a mechanism to perform policy evaluation and control by using the Kalman filter as the mediation between the measurements obtained from the environment and the internal representation of the state. Furthermore, for cases where the discrete-time controlled process is governed by a nonlinear stochastic difference equation, a Kalman filter that linearizes around the current mean and covariance referred to as an extended Kalman filter can be used to obtain robust estimates of the state. This report focuses only on the linear dynamical system case.
-
 \subsection{Experiment}
 
-The following experiment we uses true online Sarsa($\lambda$) to estimate $q^*$ as described in \cite{sutton2018reinforcement} for a linear dynamical system. State-action feature vector with tile coding $x = x(s, a)$ is used to encode the 2-dimensional continuous state space $[-2, 2] \times [-2, 2] \subset \mathbb{R}^2$. 10 tilings were used with tile width $= [0.1, 0.1]$. The Q-function is then parametrized as $q(s, a, w) = w^Tx(s,a)$. The values describing the linear dynamical system in (\ref{eq:dynamical}) is as follows:
+The following experiment we uses true online Sarsa($\lambda$) to estimate $q^*$ as described in \cite{sutton2018reinforcement} for a linear dynamical system. The values describing the linear dynamical system in (\ref{eq:dynamical}) is as follows:
 \[
 A = \begin{bmatrix}
 0 & 1 \\
@@ -119,8 +118,24 @@ with $\triangle t = 0.02$, $q = 10^{-7}$, $\eta = 0.02$,  and $r$ varied from $1
 	\includegraphics[scale=0.5]{Arnoldcatmap.png}
 	\caption{The lines with the arrows show the contracting and expanding eigenspaces. The control should force the state to straddle the contracting eigenspaces to reach the hyperbolic equilibrium point.  \texttt{https://commons.wikimedia.org/wiki/File:Arnoldcatmap.svg} }
 \end{figure}
-The actions were parametrized to limit the control to act only in the $x$-direction with the options being move left, right, and no control with corresponding control vectors being $[-1, 0], [1, 0], [0,0]$. The initial condition was chosen to be within a 2-D ball of radius 0.05 centered at $[-1.62, 1]$ which lies on the contracting eigenspace. The terminal states are the cases where the state reaches failure regions defined to be $b$ away from the contracting eigenspaces (below the line $y = \dfrac{-2x}{1+\sqrt{5}} - b$ and above the line $y = \dfrac{-2x}{1+\sqrt{5}} + b$). If the controller is successful in containing the state to be within the success region for 400 time steps, a terminal state is reached. For each time step in the success region, a reward of $+1$ is received. 
+ State-action feature vector with tile coding $x = x(s, a)$ is used to encode the 2-dimensional continuous state space $[-2, 2] \times [-2, 2] \subset \mathbb{R}^2$. 10 tilings were used with tile width $= [0.1, 0.1]$. The actions were parametrized to limit the control to act only in the $x$-direction with the options being move left, right, and no control with corresponding control vectors being $[-1, 0], [1, 0], [0,0]$. The Q-function is then parametrized as $q(s, a, w) = w^Tx(s,a)$. 
+ 
+The initial condition was chosen to be within a 2-D ball of radius 0.05 centered at $[-1.62, 1]$ which lies on the contracting eigenspace. The terminal states are the cases where the state reaches failure regions defined to be $b$ away from the contracting eigenspaces (below the line $y = \dfrac{-2x}{1+\sqrt{5}} - b$ and above the line $y = \dfrac{-2x}{1+\sqrt{5}} + b$). Refer to figure \label{fig:o_control} for details. If the controller is successful in containing the state to be within the success region for 400 time steps, a terminal state is reached. For each time step in the success region, a reward of $+1$ is received. A controller which always moves in the direction of the contracting eigenspace is able to achieve this goal given sufficiently small process noise. 
 
+
+\begin{figure}[H]
+\includegraphics[scale=0.5]{optimal_controller.png}
+\label{fig:o_control}
+\caption{The red dotted-lines indicate the regions bounding successful control. The black dotted-line denotes the contracting eigenspace. The paths generated by the controller always moving in the direction of the contracting eigenspace is shown.}
+\end{figure}
+
+The following illustrates the results of the above described control problem using True online Sarsa($\lambda$) for increasing measurement noise. All other parameters kept constant across trials. For each trial, True online Sarsa ($\lambda$) uses 2000 episodes to learn $q_*$. For control \textit{without} Kalman filtering, the feature function is defined from $x : \mathcal{Z}^+ \times \mathcal A \rightarrow \mathbb{R}^d$ where $\mathcal{Z}$ is the measurement space including the terminal state. For control \textit{with} Kalman filtering, the feature function is defined as usual: $x : \mathcal{S}^+ \times \mathcal A \rightarrow \mathbb{R}^d$. The learned $w$ for the parametrized policy is then evaluated using the average reward over 100 control trials with the initial state chosen to be randomly within a 2-D ball of radius 0.05 centered at $[-1.62, 1]$. Figure (\ref{fig:kf_control}) shows that Kalman filtering based estimation of state enables True online Sarsa($\lambda$) to effectively learn a controller under process and measurements noise. The difference in performance is drastic as the measurement noise reaches the magnitude of the control.
+
+\begin{figure}[H]
+\includegraphics[scale=0.5]{2d_res.png}
+\label{fig:kf_control}
+\caption{Comparison of $q_*$ obtained with Kalman filtering state estimation vs using only measurements.}
+\end{figure}
 
 
 \bibliographystyle{plain} 
