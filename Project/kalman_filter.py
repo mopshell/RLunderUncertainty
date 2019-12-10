@@ -17,7 +17,7 @@ class KalmanFilterWrapper:
         self.P_0 = P_0
         self.n_time_steps = 0
         self.actions = 3
-        #  self.ev = [self.x_k_m]
+        self.ev = [x_0]
         self.estimation = estimation
 
     def reset(self):
@@ -25,9 +25,9 @@ class KalmanFilterWrapper:
         self.x_hat = x_0 + np.random.multivariate_normal(np.zeros(x_0.shape), self.P_0)
         self.x_k_m = x_0
         self.z_k = np.dot(self.H, x_0)
-        self.P = self.P_0
+        #  self.P = self.P_0
         self.n_time_steps = 0
-        #  self.ev = [self.x_k_m]
+        self.ev = [x_0]
         return self.x_hat 
 
     def action_to_control(self, action):
@@ -38,13 +38,15 @@ class KalmanFilterWrapper:
             2 - move right
         '''
         #  print(f"Action picked: {action}")
-        #  m = -0.618034
-        #  mx = m * self.x_k_m[0]
-        #  if (self.x_k_m[1] > mx):
-            #  return np.array([-1, 0.])
-        #  else:
-            #  return np.array([1, 0.])
-        return np.array([action-1, 0.])
+        m = -0.618034
+        mx = m * self.x_k_m[0]
+        if (self.x_k_m[1] > mx):
+            return np.array([-1, 0.])
+        elif np.allclose(self.x_k_m[1], mx):
+            return np.array([0, 0.])
+        else:
+            return np.array([1, 0.])
+        #  return np.array([action-1, 0.])
 
     def within_valley(self, state):
         m = -0.618034
@@ -58,17 +60,17 @@ class KalmanFilterWrapper:
         self.n_time_steps += 1
 
         done = False
-        reward = 0.1
+        reward = 1
 
-        if np.linalg.norm(self.x_k_m) < 0.2:
-            reward = 5.
+        #  if np.linalg.norm(self.x_k_m) < 0.2:
+            #  reward = 5.
 
         # If outside 2x(unit ball), controller failed. Reward -1
         #  if np.linalg.norm(self.x_k_m) > 2.0 or self.n_time_steps == 400:
         if not self.within_valley(self.x_k_m) or self.n_time_steps == 400:
             #  print(f"Episode terminated: x = {self.x_k_m}, t = {self.n_time_steps}")
-            #  ev_mat = np.array(self.ev)
-            #  plt.plot(ev_mat[:,0], ev_mat[:, 1])
+            ev_mat = np.array(self.ev)
+            plt.plot(ev_mat[:,0], ev_mat[:, 1])
             done = True
 
         info = None
@@ -84,7 +86,7 @@ class KalmanFilterWrapper:
 
         # Update dynamical system
         x_k = np.dot(self.A, self.x_k_m) + np.dot(self.B, u) + w_k_m
-        #  self.ev.append(x_k)
+        self.ev.append(x_k)
         #  print(f"State_prev: {self.x_k_m}, state: {x_k}, t: {self.n_time_steps}")
 
         # Draw measurement noise
@@ -103,21 +105,6 @@ class KalmanFilterWrapper:
         P_prior = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
 
         self.update_dynamical_system(u)
-
-        # Draw process noise
-        #  w_k_m = np.random.multivariate_normal(np.zeros(self.x_k_m.shape), self.Q)
-
-        #  # Update dynamical system
-        #  x_k = np.dot(self.A, self.x_k_m) + np.dot(self.B, u) + w_k_m
-        #  self.ev.append(x_k)
-        #  #  print(f"State_prev: {self.x_k_m}, state: {x_k}, t: {self.n_time_steps}")
-
-        #  # Draw measurement noise
-        #  v_k = np.random.multivariate_normal(np.zeros(self.z_k.shape), self.R)
-
-        #  # Obtain measurement
-        #  self.z_k = np.dot(self.H, x_k) + v_k
-        #  self.x_k_m = x_k
 
         # Compute Kalman gain
         S = self.H @ P_prior @ self.H.T + self.R

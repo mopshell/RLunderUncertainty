@@ -13,10 +13,10 @@ A = np.eye(2) + dt * J
 B = 0.02 * np.eye(2)
 
 # Observation map
-H = np.ones((2,2))
+H = np.eye(2)
 
 # Process noise
-q_var = 1e-7
+q_var = 1e-9
 Q = np.eye(2) * q_var
 
 # Initial state
@@ -53,7 +53,7 @@ for r_var in r_vars:
             num_tilings=10,
             tile_width=np.array([0.1, 0.1]))
 
-    w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=1000)
+    w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=2000)
     print(f"Completed Sarsa Lambda training for noise level: {r_var}")
 
     trials = 100
@@ -73,7 +73,7 @@ for r_var in r_vars:
             num_tilings=10,
             tile_width=np.array([0.1, 0.1]))
 
-    w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=1000)
+    w = SarsaLambda(env, gamma=1., lam=0.8, alpha=0.01, X=X, num_episode=2000)
     print(f"Completed Sarsa Lambda training for noise level: {r_var}")
 
     trials = 100
@@ -84,22 +84,74 @@ print(averaged_returns)
 print(averaged_returns_no_kf)
 plt.loglog(r_vars, averaged_returns_no_kf)
 plt.loglog(r_vars, averaged_returns)
+plt.xlabel("Measurement noise", fontsize=14)
+plt.ylabel("Average return", fontsize=14)
 plt.legend(["No KF", "KF"])
 plt.show()
 
 
 
-#  m = -0.618034
-#  bound = 0.5
-#  x = np.linspace(-2., 2., 100)
-#  ub = m * x + bound
-#  lb = m * x - bound
-#  plt.plot(x, m*x, 'g--')
-#  plt.plot(x, ub, 'r--')
-#  plt.plot(x, lb, 'r--')
+
+'''
+### Plot opt
+x_0 = np.array([-1., 0.618 + 0.2])
+R = np.eye(2) * 1e-5
+env = KalmanFilterWrapper(A, B, H, Q, R, x_0, P_0, True)
+while True: 
+    S_p, R, done, info = env.step(A) 
+    if done:
+        env.reset()
+        break
+
+R = np.eye(2) * 1e-5
+x_0 = np.array([0.6, -0.37082 + 0.2])
+env = KalmanFilterWrapper(A, B, H, Q, R, x_0, P_0, True)
+while True: 
+    S_p, R, done, info = env.step(A) 
+    if done:
+        env.reset()
+        break
+
+R = np.eye(2) * 1e-5
+x_0 = np.array([0.9, -0.5562 - 0.2])
+env = KalmanFilterWrapper(A, B, H, Q, R, x_0, P_0, True)
+while True: 
+    S_p, R, done, info = env.step(A) 
+    if done:
+        env.reset()
+        break
+
+R = np.eye(2) * 1e-5
+x_0 = np.array([-1.073, 0.35])
+env = KalmanFilterWrapper(A, B, H, Q, R, x_0, P_0, True)
+while True: 
+    S_p, R, done, info = env.step(A) 
+    if done:
+        env.reset()
+        break
+
+R = np.eye(2) * 1e-5
+x_0 = np.array([1.42, -0.5])
+env = KalmanFilterWrapper(A, B, H, Q, R, x_0, P_0, True)
+while True: 
+    S_p, R, done, info = env.step(A) 
+    if done:
+        env.reset()
+        break
+m = -0.618034
+bound = 0.5
+x = np.linspace(-2., 2., 100)
+ub = m * x + bound
+lb = m * x - bound
+plt.plot(x, m*x, 'k--')
+plt.plot(x, ub, 'r--')
+plt.plot(x, lb, 'r--')
+plt.xlabel('x', fontsize=14)
+plt.ylabel('y', fontsize=14)
 #  d_reward_circ = plt.Circle((0, 0), 0.2, color='g', alpha=0.2)
 #  ax = plt.gcf().gca()
 #  ax.add_artist(d_reward_circ)
-#  plt.show()
-#  plt.cla()
-#  plt.clf()
+plt.show()
+plt.cla()
+plt.clf()
+'''
